@@ -4,7 +4,7 @@ pragma solidity >=0.6.0 <0.9.0;
 contract CrowdFunding{
     mapping(address => uint) public contributors;
     address public admin;
-    uint public noOfContributors;
+    uint public numContributors;
     uint public minContribution;
     uint public deadline;
     uint public goal;
@@ -16,7 +16,7 @@ contract CrowdFunding{
         uint amount;
         bool completed;
         uint numVotes;
-        mapping(address => bool) voted;
+        mapping(address => bool) voters;
     }
 
     uint numRequests;   
@@ -35,7 +35,7 @@ contract CrowdFunding{
         require(msg.value >= minContribution, 'Contribution is less than minimum!');
 
         if(contributors[msg.sender] == 0){
-            noOfContributors++;
+            numContributors++;
         }
 
         contributors[msg.sender] += msg.value;
@@ -70,6 +70,30 @@ contract CrowdFunding{
         request.amount = _amount;
         request.completed = false;
         request.numVotes = 0;
+    }
+
+    function voteRequest(uint _requestNum){
+        require(contributors[msg.sender] > 0, 'You have not contributed!');
+        require(block.timestamp < deadline, 'Campaign has ended!');
+
+        Request storage request = requests[_requestNum];
+
+        require(request.completed == false, 'Request has already been completed!');
+        require(request.voters[msg.sender] == false, 'You have already voted!');
+
+        request.voters[msg.sender] = true;
+        request.numVotes++;
+    }
+
+    function makePayment(uint _requestNum) public onlyAdmin{
+        require(raisedAmount >= goal, 'Campaign has not reached goal!');
+        Request storage request = requests[_requestNum];
+
+        require(request.completed == false, 'Request has already been completed!');
+        require(request.numVotes  >= numContributors / 2, 'Not enough votes!');
+
+        request.beneficiary.transfer(request.amount);
+        request.completed = true;
     }
 
     modifier onlyAdmin{
